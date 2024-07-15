@@ -4,6 +4,8 @@
 
 #define MAX_ACCOUNTS 100
 #define MAX_HOUSINGS 100
+#define ACCOUNTS_FILE "accounts.dat"
+#define HOUSINGS_FILE "housings.dat"
 
 // Структура для зберігання інформації про акаунт
 typedef struct {
@@ -20,6 +22,7 @@ typedef struct {
     char name[50];
     char description[500];
     char category[50];
+    char region[50];
     char district[50];
     int floors;
     char repairStatus[50];
@@ -37,13 +40,29 @@ int accountCount = 0;
 int housingCount = 0;
 
 const char *housingTypes[] = {
-    "Apartment",
-    "House",
-    "Villa",
-    "Studio",
-    "Loft"
+    "Квартира",
+    "Будинок",
+    "Вілла",
+    "Студія",
+    "Лофт"
 };
 int housingTypesCount = sizeof(housingTypes) / sizeof(housingTypes[0]);
+
+const char *regions[] = {
+    "Київ",
+    "Одеса",
+    "Харків",
+    "Львів",
+    "Івано-Франківськ"
+};
+const char *districts[][10] = {
+    {"Голосіївський", "Дарницький", "Деснянський", "Дніпровський", "Оболонський", "Печерський", "Подільський", "Святошинський", "Солом'янський", "Шевченківський"},
+    {"Київський", "Малиновський", "Приморський", "Суворовський"},
+    {"Індустріальний", "Київський", "Московський", "Немишлянський", "Новобаварський", "Слобідський", "Холодногірський", "Шевченківський"},
+    {"Галицький", "Залізничний", "Личаківський", "Сихівський", "Франківський", "Шевченківський"},
+    {"Бистриця", "Вовчинець", "Крихівці", "Микитинці", "Пасічна", "Угорники", "Хриплин"}
+};
+int regionCount = sizeof(regions) / sizeof(regions[0]);
 
 // Прототипи функцій
 void displayMenu();
@@ -56,8 +75,17 @@ void evaluateService();
 void bookHousing();
 void printBuildYearOptions();
 void printHousingTypeOptions();
+void printRegionOptions();
+void printDistrictOptions(int regionIndex);
+void loadAccounts();
+void loadHousings();
+void saveAccounts();
+void saveHousings();
 
 int main() {
+    loadAccounts();
+    loadHousings();
+
     int choice;
     do {
         displayMenu();
@@ -93,6 +121,9 @@ int main() {
                 printf("Неправильний вибір. Спробуйте ще раз.\n");
         }
     } while (choice != 0);
+
+    saveAccounts();
+    saveHousings();
 
     return 0;
 }
@@ -171,141 +202,229 @@ void addHousing() {
         return;
     }
 
-    printf("Введіть район: ");
-    scanf("%s", newHousing->district);
+    printf("Виберіть регіон:\n");
+    printRegionOptions();
+    int regionChoice;
+    scanf("%d", &regionChoice);
+    if (regionChoice >= 1 && regionChoice <= regionCount) {
+        strcpy(newHousing->region, regions[regionChoice - 1]);
+        printf("Виберіть район:\n");
+        printDistrictOptions(regionChoice - 1);
+        int districtChoice;
+        scanf("%d", &districtChoice);
+        if (districtChoice >= 1 && districtChoice <= 10) {
+            strcpy(newHousing->district, districts[regionChoice - 1][districtChoice - 1]);
+        } else {
+            printf("Неправильний вибір району. Житло не додано.\n");
+            housingCount--;
+            return;
+        }
+    } else {
+        printf("Неправильний вибір регіону. Житло не додано.\n");
+        housingCount--;
+        return;
+    }
+
     printf("Введіть кількість поверхів: ");
     scanf("%d", &newHousing->floors);
-    printf("Введіть стан ремонту: ");
-    scanf("%s", newHousing->repairStatus);
-    printf("Виберіть рік побудови з наступних варіантів:\n");
-    printBuildYearOptions();
+    printf("Введіть статус ремонту: ");
+    scanf(" %[^\n]s", newHousing->repairStatus);
+    printf("Введіть рік будівництва: ");
     scanf("%d", &newHousing->buildYear);
     printf("Введіть адресу: ");
     scanf(" %[^\n]s", newHousing->address);
-    printf("Введіть ціну: ");
+    printf("Введіть ціну за добу оренди: ");
     scanf("%f", &newHousing->price);
     newHousing->isBooked = 0;
+    newHousing->postedBy = accounts[rand() % accountCount];
 
-    printf("Введіть ім'я користувача, який викладає оголошення: ");
-    char username[50];
-    scanf("%s", username);
-    for (int i = 0; i < accountCount; i++) {
-        if (strcmp(accounts[i].username, username) == 0) {
-            newHousing->postedBy = accounts[i];
-            printf("Дякуємо! Ваше оголошення опубліковано:\n");
-            printf("Район: %s\n", newHousing->district);
-            printf("Поверхів: %d\n", newHousing->floors);
-            printf("Стан ремонту: %s\n", newHousing->repairStatus);
-            printf("Рік побудови: %d\n", newHousing->buildYear);
-            printf("Опис: %s\n", newHousing->description);
-            printf("Адреса: %s\n", newHousing->address);
-            printf("Телефон: %s\n", newHousing->postedBy.phone);
-            return;
-        }
-    }
-    printf("Користувача не знайдено. Житло не додано.\n");
-    housingCount--; // Відкат збільшення лічильника житла
+    printf("Житло успішно додано.\n");
 }
 
 void viewHousing() {
+    char housingName[50];
+    printf("Введіть назву житла для перегляду: ");
+    scanf(" %[^\n]s", housingName);
+
     for (int i = 0; i < housingCount; i++) {
-        printf("\n--- Житло %d ---\n", i + 1);
-        printf("Назва: %s\n", housings[i].name);
-        printf("Опис: %s\n", housings[i].description);
-        printf("Категорія: %s\n", housings[i].category);
-        printf("Район: %s\n", housings[i].district);
-        printf("Поверхів: %d\n", housings[i].floors);
-        printf("Стан ремонту: %s\n", housings[i].repairStatus);
-        printf("Рік побудови: %d\n", housings[i].buildYear);
-        printf("Адреса: %s\n", housings[i].address);
-        printf("Ціна: %.2f\n", housings[i].price);
-        printf("Статус: %s\n", housings[i].isBooked ? "Заброньовано" : "Доступне");
-        printf("Виклав: %s (Email: %s, Телефон: %s)\n", housings[i].postedBy.username, housings[i].postedBy.email, housings[i].postedBy.phone);
+        if (strcmp(housings[i].name, housingName) == 0) {
+            printf("Назва: %s\n", housings[i].name);
+            printf("Опис: %s\n", housings[i].description);
+            printf("Тип: %s\n", housings[i].category);
+            printf("Регіон: %s, Район: %s\n", housings[i].region, housings[i].district);
+            printf("Поверхів: %d\n", housings[i].floors);
+            printf("Статус ремонту: %s\n", housings[i].repairStatus);
+            printf("Рік будівництва: %d\n", housings[i].buildYear);
+            printf("Адреса: %s\n", housings[i].address);
+            printf("Ціна за добу: %.2f\n", housings[i].price);
+            printf("Доступність: %s\n", housings[i].isBooked ? "Не доступно" : "Доступно");
+            printf("Оголошення розмістив: %s\n", housings[i].postedBy.username);
+            return;
+        }
     }
+    printf("Житло не знайдено.\n");
 }
 
 void findHousing() {
-    char category[50];
-    printf("Введіть категорію для пошуку житла: ");
-    scanf("%s", category);
+    char region[50];
+    printf("Введіть регіон для пошуку житла: ");
+    scanf(" %[^\n]s", region);
 
-    int found = 0;
+    printf("Результати пошуку житла в регіоні %s:\n", region);
     for (int i = 0; i < housingCount; i++) {
-        if (strcmp(housings[i].category, category) == 0) {
-            printf("\n--- Житло %d ---\n", i + 1);
-            printf("Назва: %s\n", housings[i].name);
-            printf("Опис: %s\n", housings[i].description);
-            printf("Категорія: %s\n", housings[i].category);
-            printf("Район: %s\n", housings[i].district);
-            printf("Поверхів: %d\n", housings[i].floors);
-            printf("Стан ремонту: %s\n", housings[i].repairStatus);
-            printf("Рік побудови: %d\n", housings[i].buildYear);
-            printf("Адреса: %s\n", housings[i].address);
-            printf("Ціна: %.2f\n", housings[i].price);
-            printf("Статус: %s\n", housings[i].isBooked ? "Заброньовано" : "Доступне");
-            printf("Виклав: %s (Email: %s, Телефон: %s)\n", housings[i].postedBy.username, housings[i].postedBy.email, housings[i].postedBy.phone);
-            found = 1;
+        if (strcmp(housings[i].region, region) == 0) {
+            printf("Назва: %s, Ціна за добу: %.2f, Доступність: %s\n", housings[i].name, housings[i].price, housings[i].isBooked ? "Не доступно" : "Доступно");
         }
-    }
-
-    if (!found) {
-        printf("Житла з вказаною категорією не знайдено.\n");
     }
 }
 
 void evaluateService() {
-    printf("Оцінка сервісу поки не реалізована.\n");
+    int rating;
+    printf("Оцініть сервіс від 1 до 5: ");
+    scanf("%d", &rating);
+
+    if (rating >= 1 && rating <= 5) {
+        printf("Дякуємо за вашу оцінку %d!\n", rating);
+    } else {
+        printf("Неправильний рейтинг. Будь ласка, введіть число від 1 до 5.\n");
+    }
 }
 
 void bookHousing() {
-    char username[50];
     char housingName[50];
-    printf("Введіть ім'я користувача для бронювання: ");
-    scanf("%s", username);
     printf("Введіть назву житла для бронювання: ");
-    scanf("%s", housingName);
-
-    int userIndex = -1;
-    for (int i = 0; i < accountCount; i++) {
-        if (strcmp(accounts[i].username, username) == 0) {
-            userIndex = i;
-            break;
-        }
-    }
-
-    if (userIndex == -1) {
-        printf("Користувача не знайдено.\n");
-        return;
-    }
+    scanf(" %[^\n]s", housingName);
 
     for (int i = 0; i < housingCount; i++) {
         if (strcmp(housings[i].name, housingName) == 0) {
             if (housings[i].isBooked) {
-                printf("Житло вже заброньовано.\n");
-                return;
+                printf("Житло вже заброньоване.\n");
+            } else {
+                housings[i].isBooked = 1;
+                printf("Житло успішно заброньоване.\n");
             }
-
-            housings[i].isBooked = 1;
-            strcat(accounts[userIndex].currentBookings, housings[i].name);
-            strcat(accounts[userIndex].currentBookings, ", ");
-            printf("Житло успішно заброньовано.\n");
             return;
         }
     }
-
     printf("Житло не знайдено.\n");
 }
 
 void printBuildYearOptions() {
-    printf("1. 2000\n");
-    printf("2. 2005\n");
-    printf("3. 2010\n");
-    printf("4. 2015\n");
-    printf("5. 2020\n");
+    printf("1. 2000-е роки\n");
+    printf("2. 2010-е роки\n");
+    printf("3. 2020-е роки\n");
 }
 
 void printHousingTypeOptions() {
     for (int i = 0; i < housingTypesCount; i++) {
         printf("%d. %s\n", i + 1, housingTypes[i]);
     }
+}
+
+void printRegionOptions() {
+    for (int i = 0; i < regionCount; i++) {
+        printf("%d. %s\n", i + 1, regions[i]);
+    }
+}
+
+void printDistrictOptions(int regionIndex) {
+    for (int i = 0; i < 10; i++) {
+        printf("%d. %s\n", i + 1, districts[regionIndex][i]);
+    }
+}
+
+void loadAccounts() {
+    FILE *file = fopen(ACCOUNTS_FILE, "rb");
+    if (file == NULL) {
+        // Якщо файл не існує, створюємо пустий файл
+        file = fopen(ACCOUNTS_FILE, "wb");
+        if (file == NULL) {
+            printf("Не вдалося створити файл акаунтів.\n");
+            return;
+        }
+        fclose(file);
+        printf("Створено новий файл акаунтів.\n");
+        return;
+    }
+
+    // Якщо файл існує, читаємо дані з нього
+    if (fread(&accountCount, sizeof(int), 1, file) != 1) {
+        printf("Помилка при читанні кількості акаунтів.\n");
+        fclose(file);
+        return;
+    }
+    if (fread(accounts, sizeof(Account), accountCount, file) != accountCount) {
+        printf("Помилка при читанні акаунтів.\n");
+        fclose(file);
+        return;
+    }
+    fclose(file);
+}
+
+void loadHousings() {
+    FILE *file = fopen(HOUSINGS_FILE, "rb");
+    if (file == NULL) {
+        // Якщо файл не існує, створюємо пустий файл
+        file = fopen(HOUSINGS_FILE, "wb");
+        if (file == NULL) {
+            printf("Не вдалося створити файл житла.\n");
+            return;
+        }
+        fclose(file);
+        printf("Створено новий файл житла.\n");
+        return;
+    }
+
+    // Якщо файл існує, читаємо дані з нього
+    if (fread(&housingCount, sizeof(int), 1, file) != 1) {
+        printf("Помилка при читанні кількості житла.\n");
+        fclose(file);
+        return;
+    }
+    if (fread(housings, sizeof(Housing), housingCount, file) != housingCount) {
+        printf("Помилка при читанні житла.\n");
+        fclose(file);
+        return;
+    }
+    fclose(file);
+}
+
+void saveAccounts() {
+    FILE *file = fopen(ACCOUNTS_FILE, "wb");
+    if (file == NULL) {
+        printf("Помилка при відкритті файлу акаунтів для запису.\n");
+        return;
+    }
+
+    if (fwrite(&accountCount, sizeof(int), 1, file) != 1) {
+        printf("Помилка при записі кількості акаунтів.\n");
+        fclose(file);
+        return;
+    }
+    if (fwrite(accounts, sizeof(Account), accountCount, file) != accountCount) {
+        printf("Помилка при записі акаунтів.\n");
+        fclose(file);
+        return;
+    }
+    fclose(file);
+}
+
+void saveHousings() {
+    FILE *file = fopen(HOUSINGS_FILE, "wb");
+    if (file == NULL) {
+        printf("Помилка при відкритті файлу житла для запису.\n");
+        return;
+    }
+
+    if (fwrite(&housingCount, sizeof(int), 1, file) != 1) {
+        printf("Помилка при записі кількості житла.\n");
+        fclose(file);
+        return;
+    }
+    if (fwrite(housings, sizeof(Housing), housingCount, file) != housingCount) {
+        printf("Помилка при записі житла.\n");
+        fclose(file);
+        return;
+    }
+    fclose(file);
 }
