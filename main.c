@@ -7,6 +7,7 @@
 #define ACCOUNTS_FILE "accounts.dat"
 #define HOUSINGS_FILE "housings.dat"
 
+
 // Структура для зберігання інформації про акаунт
 typedef struct {
     char username[50];
