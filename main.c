@@ -156,7 +156,7 @@ void displayMenu() {
     printf("3. Додати житло\n");
     printf("4. Переглянути моє житло\n");
     printf("5. Знайти житло\n");
-    printf("6. Оцінити послуги\n");
+    printf("6. Оцінити сервіс\n");
     printf("0. Вихід\n");
 }
 
@@ -195,9 +195,6 @@ void viewAccount() {
         printf("Електронна пошта: %s\n", accounts[index].email);
         printf("Ім'я користувача: %s\n", accounts[index].username);
         printf("Номер телефону: %s\n", accounts[index].phone);
-        printf("Історія замовлень: %s\n", accounts[index].orderHistory);
-        printf("Поточні бронювання: %s\n", accounts[index].currentBookings);
-        printf("Вподобання: %s\n", accounts[index].preferences);
         printf("Рейтинг: %.1f\n", accounts[index].rating / (accounts[index].ratingCount ? accounts[index].ratingCount : 1));
 
         int choice;
